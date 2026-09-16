@@ -2,67 +2,50 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-export default function UserPage() {
-  const [ticket, setTicket] = useState(null)
-  const [aheadCount, setAheadCount] = useState(0)
+export default function AdminPage() {
+  const [waitingList, setWaitingList] = useState([])
 
-  // 整理券の発行
-  const issueTicket = async () => {
-    const { data } = await supabase.from('tickets').insert([{ status: 'waiting' }]).select().single()
-    if (data) setTicket(data)
+  // 待ち状態のチケット一覧を取得
+  const fetchTickets = async () => {
+    const { data } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('status', 'waiting')
+      .order('id', { ascending: true })
+    if (data) setWaitingList(data)
   }
 
-  // 状態の監視と「あと何組」の計算
   useEffect(() => {
-    if (!ticket) return
+    fetchTickets()
 
-    const updateStatus = async () => {
-      // 自分の状態（呼び出されたか）を確認
-      const { data: current } = await supabase.from('tickets').select('status').eq('id', ticket.id).single()
-      if (current) setTicket(prev => ({ ...prev, status: current.status }))
-
-      // 自分より前に並んでいる人数（待ち状態の件数）を取得
-      const { count } = await supabase
-        .from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'waiting')
-        .lt('id', ticket.id)
-
-      setAheadCount(count || 0)
-    }
-
-    updateStatus()
-
-    // データベースに変更があったら画面を更新
+    // 新しい発券や状態変更をリアルタイムでリストに反映
     const channel = supabase
-      .channel('user-listen')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, updateStatus)
+      .channel('admin-listen')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchTickets)
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [ticket])
+  }, [])
+
+  // 呼び出しボタンを押したときの処理
+  const handleCall = async (id) => {
+    await supabase.from('tickets').update({ status: 'called' }).eq('id', id)
+  }
 
   return (
-    <main style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      {!ticket ? (
-        <button onClick={issueTicket} style={{ padding: '1rem 2rem', fontSize: '1.2rem', cursor: 'pointer' }}>
-          整理券を発行する
-        </button>
-      ) : (
-        <div>
-          <h2>整理券番号: No. {ticket.id}</h2>
-          {ticket.status === 'called' ? (
-            <div style={{ background: '#ff4d4f', color: '#fff', padding: '2rem', borderRadius: '12px', fontSize: '1.5rem', fontWeight: 'bold' }}>
-              🔔 お呼び出し中！<br />スタッフのところへお越しください！
-            </div>
-          ) : (
-            <div style={{ background: '#f0f0f0', padding: '2rem', borderRadius: '12px' }}>
-              <p style={{ fontSize: '1.5rem' }}>お呼び出しまで あと <strong>{aheadCount}</strong> 組</p>
-              <p style={{ color: '#666', fontSize: '0.9rem' }}>※この画面を開いたままお待ちください</p>
-            </div>
-          )}
-        </div>
-      )}
+    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>受付・管理画面</h1>
+      <h3>現在の待ち人数: {waitingList.length} 組</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {waitingList.map((item) => (
+          <div key={item.id} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>No. {item.id}</span>
+            <button onClick={() => handleCall(item.id)} style={{ padding: '0.5rem 1rem', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              呼び出す
+            </button>
+          </div>
+        ))}
+      </div>
     </main>
   )
 }
