@@ -43,13 +43,26 @@ export default function UserPage() {
   }, [ticket])
 
   return (
-    
+    <main style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
       {!ticket ? (
-        
+        <button onClick={issueTicket} style={{ padding: '1rem 2rem', fontSize: '1.2rem', cursor: 'pointer' }}>
           整理券を発行する
-        
+        </button>
       ) : (
-Unimplemented node type: 7
-  )}
-)
+        <div>
+          <h2>整理券番号: No. {ticket.id}</h2>
+          {ticket.status === 'called' ? (
+            <div style={{ background: '#ff4d4f', color: '#fff', padding: '2rem', borderRadius: '12px', fontSize: '1.5rem', fontWeight: 'bold' }}>
+              🔔 お呼び出し中！<br />スタッフのところへお越しください！
+            </div>
+          ) : (
+            <div style={{ background: '#f0f0f0', padding: '2rem', borderRadius: '12px' }}>
+              <p style={{ fontSize: '1.5rem' }}>お呼び出しまで あと <strong>{aheadCount}</strong> 組</p>
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>※この画面を開いたままお待ちください</p>
+            </div>
+          )}
+        </div>
+      )}
+    </main>
+  )
 }
