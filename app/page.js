@@ -49,3 +49,7 @@ export default function UserPage() {
           整理券を発行する
         
       ) : (
+Unimplemented node type: 7
+  )}
+)
+}
